@@ -7,11 +7,13 @@ import scala.io.{BufferedSource, Source}
 abstract class EsDocument {
 
   def rowToLpi(row: Row): Map[String, Any]
+
   def rowToPaf(row: Row): Map[String, Any]
 
   /**
     * Creates formatted address from PAF address
     * Adapted from API code
+    *
     * @return String of formatted address
     */
   def generateFormattedPafAddress(poBoxNumber: String, buildingNumber: String, dependentThoroughfare: String,
@@ -19,7 +21,7 @@ abstract class EsDocument {
                                   subBuildingName: String, buildingName: String, doubleDependentLocality: String,
                                   dependentLocality: String, postTown: String, postcode: String): String = {
 
-    val poBoxNumberEdit = if (poBoxNumber.isEmpty) "" else s"PO BOX ${poBoxNumber}"
+    val poBoxNumberEdit = if (poBoxNumber.isEmpty) "" else s"PO BOX $poBoxNumber"
     val numberAndLetter = "\\d+[A-Z]".r
 
     val trimmedBuildingNumber = buildingNumber.trim
@@ -27,7 +29,7 @@ abstract class EsDocument {
     val trimmedThoroughfare = splitAndCapitalise(thoroughfare)
 
     val buildingNumberWithStreetName =
-      s"$trimmedBuildingNumber ${ if(trimmedDependentThoroughfare.nonEmpty) s"$trimmedDependentThoroughfare, " else "" }$trimmedThoroughfare"
+      s"$trimmedBuildingNumber ${if (trimmedDependentThoroughfare.nonEmpty) s"$trimmedDependentThoroughfare, " else ""}$trimmedThoroughfare"
 
     val departmentNameEdit = splitAndCapitalise(departmentName)
     val organisationNameEdit = splitAndCapitalise(organisationName)
@@ -45,6 +47,7 @@ abstract class EsDocument {
   /**
     * Creates Welsh formatted address from PAF address
     * Adapted from API code
+    *
     * @return String of Welsh formatted address
     */
   def generateWelshFormattedPafAddress(poBoxNumber: String, buildingNumber: String, welshDependentThoroughfare: String,
@@ -52,7 +55,7 @@ abstract class EsDocument {
                                        subBuildingName: String, buildingName: String, welshDoubleDependentLocality: String,
                                        welshDependentLocality: String, welshPostTown: String, postcode: String): String = {
 
-    val poBoxNumberEdit = if (poBoxNumber.isEmpty) "" else s"PO BOX ${poBoxNumber}"
+    val poBoxNumberEdit = if (poBoxNumber.isEmpty) "" else s"PO BOX $poBoxNumber"
     val numberAndLetter = "\\d+[A-Z]".r
 
     val trimmedBuildingNumber = buildingNumber.trim
@@ -60,7 +63,7 @@ abstract class EsDocument {
     val trimmedThoroughfare = splitAndCapitalise(welshThoroughfare)
 
     val buildingNumberWithStreetName =
-      s"$trimmedBuildingNumber ${ if(trimmedDependentThoroughfare.nonEmpty) s"$trimmedDependentThoroughfare, " else "" }$trimmedThoroughfare"
+      s"$trimmedBuildingNumber ${if (trimmedDependentThoroughfare.nonEmpty) s"$trimmedDependentThoroughfare, " else ""}$trimmedThoroughfare"
 
     val departmentNameEdit = splitAndCapitalise(departmentName)
     val organisationNameEdit = splitAndCapitalise(organisationName)
@@ -80,6 +83,7 @@ abstract class EsDocument {
     * The actual logic is pretty complex and should be treated on example-to-example level
     * (with unit tests)
     * Adapted from API code
+    *
     * @return String of formatted address
     */
   def generateFormattedNagAddress(saoStartNumber: String, saoStartSuffix: String, saoEndNumber: String,
@@ -92,7 +96,6 @@ abstract class EsDocument {
     val saoHyphen = if (saoLeftRangeExists && saoRightRangeExists) "-" else ""
     val saoNumbers = Seq(saoStartNumber, saoStartSuffix, saoHyphen, saoEndNumber, saoEndSuffix)
       .map(_.trim).mkString
-
     val sao =
       if (saoText == organisation || saoText.isEmpty) saoNumbers
       else if (saoText.contains("PO BOX")) if (saoNumbers.isEmpty) s"$saoText," else s"$saoNumbers, $saoText," // e.g. EX2 5ZX
@@ -120,29 +123,19 @@ abstract class EsDocument {
       splitAndCapitaliseTowns(townName), postcodeLocator).map(_.trim).filter(_.nonEmpty).mkString(", ")
   }
 
-  def concatPaf(poBoxNumber: String, buildingNumber: String, dependentThoroughfare: String, welshDependentThoroughfare:
-  String, thoroughfare: String, welshThoroughfare: String, departmentName: String, organisationName: String,
-                subBuildingName: String, buildingName: String, doubleDependentLocality: String,
-                welshDoubleDependentLocality: String, dependentLocality: String, welshDependentLocality: String,
-                postTown: String, welshPostTown: String, postcode: String): String = {
+  def concatPaf(poBoxNumber: String, buildingNumber: String, dependentThoroughfare: String,
+                welshDependentThoroughfare: String, thoroughfare: String, welshThoroughfare: String,
+                departmentName: String, organisationName: String, subBuildingName: String, buildingName: String,
+                doubleDependentLocality: String, welshDoubleDependentLocality: String, dependentLocality: String,
+                welshDependentLocality: String, postTown: String, welshPostTown: String, postcode: String): String = {
 
-    val langDependentThoroughfare = if (dependentThoroughfare == welshDependentThoroughfare)
-      s"$dependentThoroughfare" else s"$dependentThoroughfare $welshDependentThoroughfare"
+    val langDependentThoroughfare = concatIfDifferent(dependentThoroughfare, welshDependentThoroughfare)
+    val langThoroughfare = concatIfDifferent(thoroughfare, welshThoroughfare)
+    val langDoubleDependentLocality = concatIfDifferent(doubleDependentLocality, welshDoubleDependentLocality)
+    val langDependentLocality = concatIfDifferent(dependentLocality, welshDependentLocality)
+    val langPostTown = concatIfDifferent(postTown, welshPostTown)
 
-    val langThoroughfare = if (thoroughfare == welshThoroughfare)
-      s"$thoroughfare" else s"$thoroughfare $welshThoroughfare"
-
-    val langDoubleDependentLocality = if (doubleDependentLocality == welshDoubleDependentLocality)
-      s"$doubleDependentLocality" else s"$doubleDependentLocality $welshDoubleDependentLocality"
-
-    val langDependentLocality = if (dependentLocality == welshDependentLocality)
-      s"$dependentLocality" else s"$dependentLocality $welshDependentLocality"
-
-    val langPostTown = if (postTown == welshPostTown)
-      s"$postTown" else s"$postTown $welshPostTown"
-
-    val buildingNumberWithStreetName =
-      s"$buildingNumber ${if (langDependentThoroughfare.nonEmpty) s"$langDependentThoroughfare " else ""}$langThoroughfare"
+    val buildingNumberWithStreetName = s"$buildingNumber ${if (langDependentThoroughfare.nonEmpty) s"$langDependentThoroughfare " else ""}$langThoroughfare"
 
     Seq(departmentName, organisationName, subBuildingName, buildingName,
       poBoxNumber, buildingNumberWithStreetName, langDoubleDependentLocality, langDependentLocality,
@@ -169,44 +162,43 @@ abstract class EsDocument {
     val paoRightRangeExists = paoEndNumber.nonEmpty || paoEndSuffix.nonEmpty
     val paoHyphen = if (paoLeftRangeExists && paoRightRangeExists) "-" else ""
 
-    val paoNumbers = Seq(paoStartNumber, paoStartSuffix, paoHyphen, paoEndNumber, paoEndSuffix)
-      .map(_.trim).mkString
+    val paoNumbers = Seq(paoStartNumber, paoStartSuffix, paoHyphen, paoEndNumber, paoEndSuffix).map(_.trim).mkString
     val pao =
       if (paoText == organisation || paoText.isEmpty) paoNumbers
       else if (paoNumbers.isEmpty) s"$paoText"
       else s"$paoText $paoNumbers"
 
-    val trimmedStreetDescriptor = streetDescriptor.trim
     val buildingNumberWithStreetDescription =
-      if (pao.isEmpty) s"$sao $trimmedStreetDescriptor"
-      else if (sao.isEmpty) s"$pao $trimmedStreetDescriptor"
-      else if (pao.isEmpty && sao.isEmpty) trimmedStreetDescriptor
-      else s"$sao $pao $trimmedStreetDescriptor"
+      if (pao.isEmpty) s"$sao ${streetDescriptor.trim}"
+      else if (sao.isEmpty) s"$pao ${streetDescriptor.trim}"
+      else if (pao.isEmpty && sao.isEmpty) streetDescriptor.trim
+      else s"$sao $pao ${streetDescriptor.trim}"
 
     Seq(organisation, buildingNumberWithStreetDescription, locality,
       townName, postcodeLocator).map(_.trim).filter(_.nonEmpty).mkString(" ")
   }
+
   // check to see if the token is a listed acronym, if so skip capitilization
-  def splitAndCapitalise(input: String) : String = {
+  def splitAndCapitalise(input: String): String = {
     input.trim.split(" ").map(
-      {case y => if (acronyms.contains(y)) y
-      else y.toLowerCase.capitalize}
+      { y => if (acronyms.contains(y)) y else y.toLowerCase.capitalize }
     ).mkString(" ")
   }
 
   // check to see if the token is a listed acronym, if so skip capitilization
   // next check to see of the token is on the list of hyphenated place, if so capitalise as per list
   // next check for parts in non-hyphenated names that are always lower case
-  // if noneof the above capitalize in the standard way
-  def splitAndCapitaliseTowns(input: String) : String = {
-    input.trim.split(" ").map(  {
+  // if none of the above capitalize in the standard way
+  def splitAndCapitaliseTowns(input: String): String = {
+    input.trim.split(" ").map({
       case y => if (acronyms.contains(y)) y
-      else if (!hyphenplaces.getOrElse(y,"").equals("")) hyphenplaces.getOrElse(y,"")
-      else if (!lowercaseparts.getOrElse(y,"").equals("")) lowercaseparts.getOrElse(y,"")
+      else if (!hyphenplaces.getOrElse(y, "").equals("")) hyphenplaces.getOrElse(y, "")
+      else if (!lowercaseparts.getOrElse(y, "").equals("")) lowercaseparts.getOrElse(y, "")
       else y.toLowerCase.capitalize
-      }
-    ).mkString(" ")
+    }).mkString(" ")
   }
+
+  def concatIfDifferent(a: String, b: String): String = if (a == b) a else s"$a $b"
 
   /**
     * List of acronyms to not capitalise
@@ -216,16 +208,17 @@ abstract class EsDocument {
   /**
     * List of placenames with hyphens
     */
-  lazy val hyphenplaces: Map[String,String] = fileToMap(s"hyphenplaces","=")
+  lazy val hyphenplaces: Map[String, String] = fileToMap(s"hyphenplaces", "=")
 
   /**
     * List of placenames with hyphens
     */
-  lazy val lowercaseparts: Map[String,String] = fileToMap(s"lowercaseparts","=")
+  lazy val lowercaseparts: Map[String, String] = fileToMap(s"lowercaseparts", "=")
 
   /**
     * Convert external file into list
-    * @param fileName
+    *
+    * @param fileName name of the file
     * @return
     */
   private def fileToList(fileName: String): Seq[String] = {
@@ -236,21 +229,22 @@ abstract class EsDocument {
   /**
     * Make external file such as score matrix file into Map
     *
-    * @param fileName name of the file
+    * @param fileName  name of the file
     * @param delimiter optional, delimiter of values in the file, defaults to "="
     * @return Map containing key -> value from the file
     */
-  def fileToMap(fileName: String, delimiter: String ): Map[String,String] = {
+  def fileToMap(fileName: String, delimiter: String): Map[String, String] = {
     val resource = getResource(fileName)
     resource.getLines().map { l =>
-      val Array(k,v1,_*) = l.split(delimiter)
+      val Array(k, v1, _*) = l.split(delimiter)
       k -> v1
     }.toMap
   }
 
   /**
     * Fetch file stream as buffered source
-    * @param fileName
+    *
+    * @param fileName name of the file
     * @return
     */
   def getResource(fileName: String): BufferedSource = {

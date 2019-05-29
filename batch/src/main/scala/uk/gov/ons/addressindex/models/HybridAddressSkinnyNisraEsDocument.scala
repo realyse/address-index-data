@@ -109,11 +109,18 @@ object HybridAddressSkinnyNisraEsDocument extends EsDocument {
   )
 
   def rowToNisra(row: Row): Map[String, Any] = {
-
-    val nisraFormatted: Array[String] = generateFormattedNisraAddresses(Option(row.getString(1)).getOrElse(""), Option(row.getString(2)).getOrElse(""),
-      Option(row.getString(3)).getOrElse(""), Option(row.getString(4)).getOrElse(""), Option(row.getString(5)).getOrElse(""),
-      Option(row.getString(6)).getOrElse(""), Option(row.getString(7)).getOrElse(""), Option(row.getString(8)).getOrElse(""),
-      Option(row.getString(9)).getOrElse(""), Option(row.getString(10)).getOrElse(""), Option(row.getString(11)).getOrElse(""))
+    val nisraFormatted: Array[String] = generateFormattedNisraAddresses(
+      Option(row.getString(1)),
+      Option(row.getString(2)),
+      Option(row.getString(3)),
+      Option(row.getString(4)),
+      Option(row.getString(5)),
+      Option(row.getString(6)),
+      Option(row.getString(7)),
+      Option(row.getString(8)),
+      Option(row.getString(9)),
+      Option(row.getString(10)),
+      Option(row.getString(11)))
 
     Map(
       "uprn" -> row.getLong(0),
@@ -131,28 +138,39 @@ object HybridAddressSkinnyNisraEsDocument extends EsDocument {
     )
   }
 
-  def generateFormattedNisraAddresses(organisationName: String, subBuildingName: String, buildingName: String, buildingNumber: String, thoroughfare: String,
-                                      altThoroughfare: String, dependentThoroughfare: String, locality: String, townland: String, townName: String,
-                                      postcode: String) : Array[String] = {
+  def generateFormattedNisraAddresses(organisationName: Option[String], subBuildingName: Option[String],
+                                      buildingName: Option[String], buildingNumber: Option[String],
+                                      thoroughfare: Option[String], altThoroughfare: Option[String],
+                                      dependentThoroughfare: Option[String], locality: Option[String],
+                                      townLand: Option[String], townName: Option[String], postcode: Option[String]
+                                     ): Array[String] = {
+    val numberAndStreetDesc =
+      buildingNumber.flatMap(num =>
+        dependentThoroughfare.map(depTho =>
+          s"${num.toUpperCase} ${splitAndCapitalise(depTho)}"))
 
-    val trimmedSubBuildingName = splitAndCapitalise(subBuildingName)
-    val trimmedBuildingName = splitAndCapitalise(buildingName)
-    val trimmedThoroughfare = splitAndCapitalise(thoroughfare)
-    val trimmedAltThoroughfare = splitAndCapitalise(altThoroughfare)
-    val trimmedDependentThoroughfare = splitAndCapitalise(dependentThoroughfare)
+    val names = Seq(
+      organisationName.map(splitAndCapitalise),
+      subBuildingName.map(splitAndCapitalise),
+      buildingName.map(splitAndCapitalise),
+      numberAndStreetDesc
+    ).flatten.filter(_.nonEmpty)
 
-    val buildingNumberWithStreetDescription = s"${buildingNumber.toUpperCase} $trimmedDependentThoroughfare"
+    val area = Seq(
+      locality.map(splitAndCapitaliseTowns),
+      townLand.map(splitAndCapitaliseTowns),
+      townName.map(splitAndCapitaliseTowns),
+      postcode.map(_.toUpperCase)
+    ).flatten.filter(_.nonEmpty)
 
-    Array(
-      Seq(splitAndCapitalise(organisationName), trimmedSubBuildingName, trimmedBuildingName, buildingNumberWithStreetDescription,
-        trimmedThoroughfare, splitAndCapitaliseTowns(locality), splitAndCapitaliseTowns(townland), splitAndCapitaliseTowns(townName),
-        postcode.toUpperCase).map(_.trim).filter(_.nonEmpty).mkString(", "),
-      if (!altThoroughfare.isEmpty)
-        Seq(splitAndCapitalise(organisationName), trimmedSubBuildingName, trimmedBuildingName, buildingNumberWithStreetDescription,
-          trimmedAltThoroughfare, splitAndCapitaliseTowns(locality), splitAndCapitaliseTowns(townland), splitAndCapitaliseTowns(townName),
-          postcode.toUpperCase).map(_.trim).filter(_.nonEmpty).mkString(", ") else "",
-      Seq(organisationName, subBuildingName, buildingName, buildingNumber, dependentThoroughfare, thoroughfare,
-        altThoroughfare, locality, townland, townName, postcode).map(_.trim).filter(_.nonEmpty).mkString(" ")
-    )
+    val mixedNisra = (names.iterator ++ thoroughfare.map(splitAndCapitalise).iterator ++ area.iterator).mkString(", ")
+    val mixedAltNisra = altThoroughfare
+      .map(_ => (names.iterator ++ altThoroughfare.map(splitAndCapitalise).iterator ++ area.iterator).mkString(", "))
+      .getOrElse("")
+    val nisraAll = Seq(organisationName, subBuildingName, buildingName, buildingNumber, dependentThoroughfare,
+      thoroughfare, altThoroughfare, locality, townLand, townName, postcode)
+      .flatten.filter(_.nonEmpty).mkString(" ")
+
+    Array(mixedNisra, mixedAltNisra, nisraAll)
   }
 }

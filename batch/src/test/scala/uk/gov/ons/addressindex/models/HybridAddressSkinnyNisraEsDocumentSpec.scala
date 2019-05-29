@@ -303,9 +303,18 @@ class HybridAddressSkinnyNisraEsDocumentSpec extends WordSpec with Matchers {
 
       // Also tests nisraAll
       // When
-      val result = HybridAddressSkinnyNisraEsDocument.generateFormattedNisraAddresses(nisraOrganisation, nisraSubBuildingName,
-        nisraBuildingName, nisraBuildingNumber, nisraThoroughfare, "", nisraDependentThoroughfare, nisraLocality,
-        nisraTownland, nisraTown, nisraPostCode)
+      val result = HybridAddressSkinnyNisraEsDocument.generateFormattedNisraAddresses(
+        organisationName = Some(nisraOrganisation),
+        subBuildingName = Some(nisraSubBuildingName),
+        buildingName = Some(nisraBuildingName),
+        buildingNumber = Some(nisraBuildingNumber),
+        thoroughfare = Some(nisraThoroughfare),
+        altThoroughfare = Some(""),
+        dependentThoroughfare = Some(nisraDependentThoroughfare),
+        locality = Some(nisraLocality),
+        townLand = Some(nisraTownland),
+        townName = Some(nisraTown),
+        postcode = Some(nisraPostCode))
 
       val expected = nisraMixed
       val expectedNisraAll = "AN ORGANISATION THE SUB BUILDING NAME THE BUILDING NAME 1A OFF HERE THOROUGHFARE ROAD A LOCALITY XYZ BIG TOWNLAND LITTLE TOWN AB1 7GH"
@@ -319,9 +328,18 @@ class HybridAddressSkinnyNisraEsDocumentSpec extends WordSpec with Matchers {
 
       // Also tests nisraAll
       // When
-      val result = HybridAddressSkinnyNisraEsDocument.generateFormattedNisraAddresses(nisraOrganisation, nisraSubBuildingName,
-        nisraBuildingName, nisraBuildingNumber, nisraThoroughfare, nisraAltThoroughfare, nisraDependentThoroughfare, nisraLocality,
-        nisraTownland, nisraTown, nisraPostCode)
+      val result = HybridAddressSkinnyNisraEsDocument.generateFormattedNisraAddresses(
+        organisationName = Some(nisraOrganisation),
+        subBuildingName = Some(nisraSubBuildingName),
+        buildingName = Some(nisraBuildingName),
+        buildingNumber = Some(nisraBuildingNumber),
+        thoroughfare = Some(nisraThoroughfare),
+        altThoroughfare = Some(nisraAltThoroughfare),
+        dependentThoroughfare = Some(nisraDependentThoroughfare),
+        locality = Some(nisraLocality),
+        townLand = Some(nisraTownland),
+        townName = Some(nisraTown),
+        postcode = Some(nisraPostCode))
 
       val expected = nisraAltMixed
       val expectedNisraAll = nisraAll
