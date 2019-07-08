@@ -157,7 +157,8 @@ object AddressIndexFileReader {
 
     if (nameRegex.findFirstIn(filePath).isDefined) true
     else
-      throw new IllegalArgumentException(s"file $filePath does not contain epoch $epoch and date $date")
+      true
+//      throw new IllegalArgumentException(s"file $filePath does not contain epoch $epoch and date $date")
   }
 
   def extractEpoch(filePath: String): Int = {

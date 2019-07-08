@@ -336,7 +336,7 @@ class HybridAddressSkinnyNisraEsDocumentSpec extends WordSpec with Matchers {
         // Then
         actual shouldBe expectedNisra
       }
-    }
+  }
 
     "create NISRA with expected formatted address" in {
 
