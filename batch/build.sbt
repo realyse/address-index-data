@@ -16,8 +16,8 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.0.5" % Test,
   "org.rogach" %% "scallop" % "3.1.5",
   "org.scalaj" %% "scalaj-http" % "2.4.1",
-  "com.crealytics" %% "spark-excel" % "0.10.2"
-
+  "com.crealytics" %% "spark-excel" % "0.10.2",
+  "com.typesafe.play" %% "play-json" % "2.7.3"
 )
 
 dependencyOverrides += "commons-codec" % "commons-codec" % "1.11"
