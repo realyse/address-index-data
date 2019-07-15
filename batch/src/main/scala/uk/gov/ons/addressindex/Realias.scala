@@ -1,9 +1,50 @@
+package uk.gov.ons.addressindex
+
 import com.typesafe.config.ConfigFactory
 import org.rogach.scallop.{ScallopConf, ScallopOption}
-import scalaj.http.{Http, HttpResponse}
+import play.api.libs.functional.syntax._
+import play.api.libs.json.Reads._
 import play.api.libs.json._
+import scalaj.http.{Http, HttpResponse}
 
 object Realias extends App {
+
+  sealed trait AliasCommand
+
+  case class RemoveAlias(index: String, alias: String) extends AliasCommand
+
+  case class AddAlias(index: String, alias: String) extends AliasCommand
+
+  case class PostAliases(actions: Seq[AliasCommand])
+
+  case class IndexAliases(index: String, aliases: Seq[String])
+
+  // Classes for the POST to /_aliases
+
+  implicit val writeRemoveAlias: Writes[RemoveAlias] = (
+    (__ \ "remove" \ "index").write[String] and
+      (__ \ "remove" \ "alias").write[String]
+    ) (unlift(RemoveAlias.unapply))
+
+  implicit val writeAddAlias: Writes[AddAlias] = (
+    (__ \ "add" \ "index").write[String] and
+      (__ \ "add" \ "alias").write[String]
+    ) (unlift(AddAlias.unapply))
+
+  implicit val writeAliasCommand: Writes[AliasCommand] = {
+    case _: RemoveAlias => writeRemoveAlias
+    case _: AddAlias => writeAddAlias
+  }
+
+  implicit val writePostAliases: Writes[PostAliases] = (
+    (__ \ "actions").write[Seq[AliasCommand]],
+    ) (unlift(PostAliases.unapply))
+
+  // Classes for the GET from /_aliases/*
+
+  implicit val readIndexAliases: Reads[Seq[IndexAliases]] = (j: JsValue) => j.as[JsObject].fields.map(
+    t => IndexAliases(t._1, (t._2 \ "aliases").as[JsObject].keys.toSeq)
+  )
 
   val config = ConfigFactory.load()
 
@@ -20,6 +61,7 @@ For usage see below:
       """)
 
     val epoch: ScallopOption[String] = opt("epoch", noshort = true, descr = "Epoch to update aliases to")
+    val prefix: ScallopOption[String] = opt("prefix", noshort = true, descr = "Prefix to place before the index names").orElse(Some("index"))
     verify()
   }
 
@@ -31,16 +73,31 @@ For usage see below:
   val get_response: HttpResponse[String] = Http(url + "_alias/*").asString
   if (get_response.code != 200) throw new Exception(s"Could not get aliases using GET: code ${get_response.code} body ${get_response.body}")
 
-  val get_json = Json.parse(get_response.body).as[JsObject]
+  val index_aliases = Json.parse(get_response.body).as[Seq[IndexAliases]]
 
   val target_indexes_regex = s"^hybrid(-historical)?(-skinny)?_${opts.epoch}_".r
-  val target_indexes = get_json.fields.filter({case (target_indexes_regex(_), _) => true})
+  val target_indexes = index_aliases.filter(i => target_indexes_regex.findFirstIn(i.index).isDefined).map(_.index)
+  println("Current indexes:", target_indexes)
 
-  val target_aliases_regex = s"beta(_full|_skinny)?(_hist|_nohist)?_${opts.epoch}".r
-//  val target_aliases = get_json.fields.map((_, v) => v.filter({case (target_aliases_regex(_), _) => true}))
-  val target_aliases = get_json.fields.map({
-    case (_, v) => (v \ "aliases").as[JsObject].keys.filter({case target_aliases_regex() => true})
-  })
+  val target_aliases_regex = s"beta_(full|skinny)_(hist|nohist)_(${opts.epoch}|current)".r
+  val target_aliases = index_aliases.flatMap(_.aliases).filter(target_aliases_regex.findFirstIn(_).isDefined)
+  println("Current aliases:", target_aliases)
+
+  // replace an alias only if we have an index for it to point at
+  // delete an alias only if we're going to replace it, and it exists currently
+
+  def make_aliases(index_name: String): Seq[String] = {
+    target_indexes_regex.findFirstMatchIn(index_name) match {
+      case Some(m) =>
+        val hist = if (m.group(1) == "-historical") "hist" else "nohist"
+        val size = if (m.group(2) == "-skinny") "skinny" else "full"
+
+        Seq(s"${opts.prefix}_${size}_${hist}_current", s"beta_${size}_${hist}_${opts.epoch}")
+    }
+  }
+
+  val alias_additions = target_indexes.flatMap(i => make_aliases(i).map((i, _))).map(t => AddAlias(t._1, t._2))
+  val alias_deletions = Seq()
 
   // beta_full_hist_65          -> hybrid-historical_65_......_.............
   // beta_full_hist_current     -> hybrid-historical_65_......_.............
@@ -51,15 +108,10 @@ For usage see below:
   // beta_skinny_nohist_65      -> hybrid-skinny_65_......_.............
   // beta_skinny_nohist_current -> hybrid-skinny_65_......_.............
 
-  val data: JsValue = Json.obj(
-    "actions" -> Json.arr(
-      Json.obj("add" -> Json.obj("index" -> false, "alias" -> false)),
-      Json.obj("remove" -> Json.obj("index" -> false, "alias" -> false))
-    )
-  )
+  val data = PostAliases(alias_deletions ++ alias_additions)
 
   val post_response: HttpResponse[String] = Http(url + "_alias")
-    .postData(data)
+    .postData(Json.toJson[PostAliases](data).toString())
     .header("Content-type", "application/json")
     .asString
   if (post_response.code != 200) throw new Exception(s"Could not create aliases using POST: code ${post_response.code} body ${post_response.body}")
