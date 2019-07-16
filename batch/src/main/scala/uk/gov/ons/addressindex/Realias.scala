@@ -83,21 +83,22 @@ For usage see below:
   val target_aliases = index_aliases.flatMap(_.aliases).filter(target_aliases_regex.findFirstIn(_).isDefined)
   println("Current aliases:", target_aliases)
 
-  // replace an alias only if we have an index for it to point at
-  // delete an alias only if we're going to replace it, and it exists currently
-
+  // create an alias from an index name
   def make_aliases(index_name: String): Seq[String] = {
     target_indexes_regex.findFirstMatchIn(index_name) match {
       case Some(m) =>
         val hist = if (m.group(1) == "-historical") "hist" else "nohist"
         val size = if (m.group(2) == "-skinny") "skinny" else "full"
 
-        Seq(s"${opts.prefix}_${size}_${hist}_current", s"beta_${size}_${hist}_${opts.epoch}")
+        Seq(s"${opts.prefix}_${size}_${hist}_current", s"${opts.prefix}_${size}_${hist}_${opts.epoch}")
     }
   }
 
+  // replace an alias only if we have an index for it to point at
   val alias_additions = target_indexes.flatMap(i => make_aliases(i).map((i, _))).map(t => AddAlias(t._1, t._2))
-  val alias_deletions = Seq()
+
+  // delete an alias only if we're going to replace it, and it exists currently
+  val alias_deletions = alias_additions.filter(c => target_aliases.contains(c.alias)).map(c => RemoveAlias(c.index, c.alias))
 
   // beta_full_hist_65          -> hybrid-historical_65_......_.............
   // beta_full_hist_current     -> hybrid-historical_65_......_.............
