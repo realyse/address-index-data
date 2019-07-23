@@ -12,7 +12,8 @@ case class HybridAddressEsDocument(uprn: Long,
                                    crossRefs: Seq[Map[String, String]],
                                    classificationCode: Option[String],
                                    postcode: String,
-                                   fromSource: String)
+                                   fromSource: String,
+                                   postcodeJoined: String)
 
 object HybridAddressEsDocument extends EsDocument {
 

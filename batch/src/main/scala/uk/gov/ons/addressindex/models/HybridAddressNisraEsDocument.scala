@@ -15,7 +15,8 @@ case class HybridAddressNisraEsDocument(uprn: Long,
                                         nisra: Seq[Map[String, Any]],
                                         classificationCode: Option[String],
                                         postcode: String,
-                                        fromSource: String)
+                                        fromSource: String,
+                                        postcodeJoined: String)
 
 object HybridAddressNisraEsDocument extends EsDocument {
 

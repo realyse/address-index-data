@@ -281,7 +281,7 @@ object SqlHelper {
         val postCode = if (nisraPostCode != "") nisraPostCode
         else if (pafPostCode.isDefined) pafPostCode.getOrElse("")
         else lpiPostCode.getOrElse("")
-
+        val postCodeJoined = postCode.replaceAll(" ","")
         val fromSource = if (outputNisra.headOption.nonEmpty) "NI" else "EW"
 
         HybridAddressSkinnyNisraEsDocument(
@@ -292,7 +292,8 @@ object SqlHelper {
           outputNisra,
           classificationCode,
           postCode,
-          fromSource
+          fromSource,
+          postCodeJoined
         )
     }
   }
@@ -391,7 +392,7 @@ object SqlHelper {
 
         val postCode = if (pafPostCode.isDefined) pafPostCode.getOrElse("")
         else lpiPostCode.getOrElse("")
-
+        val postCodeJoined = postCode.replaceAll(" ","")
         val fromSource = "EW"
 
         HybridAddressSkinnyEsDocument(
@@ -401,7 +402,8 @@ object SqlHelper {
           outputPaf,
           classificationCode,
           postCode,
-          fromSource
+          fromSource,
+          postCodeJoined
         )
     }
   }
@@ -502,7 +504,7 @@ object SqlHelper {
         val (postCodeOut, postCodeIn) =
           if (splitPostCode.size == 2 && splitPostCode(1).length == 3) (splitPostCode(0), splitPostCode(1))
           else ("", "")
-
+        val postCodeJoined = postCodeOut + postCodeIn
         val fromSource = if (outputNisra.headOption.nonEmpty) "NI" else "EW"
 
         HybridAddressNisraEsDocument(
@@ -517,7 +519,8 @@ object SqlHelper {
           outputNisra,
           classificationCode,
           postCode,
-          fromSource
+          fromSource,
+          postCodeJoined
         )
     }
   }
@@ -602,7 +605,7 @@ object SqlHelper {
         val (postCodeOut, postCodeIn) =
           if (splitPostCode.size == 2 && splitPostCode(1).length == 3) (splitPostCode(0), splitPostCode(1))
           else ("", "")
-
+        val postCodeJoined = postCodeOut + postCodeIn
         val fromSource = "EW"
 
         HybridAddressEsDocument(
@@ -616,7 +619,8 @@ object SqlHelper {
           outputCrossRefs,
           classificationCode,
           postCode,
-          fromSource
+          fromSource,
+          postCodeJoined
         )
     }
   }

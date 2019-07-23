@@ -892,6 +892,11 @@ object Mappings {
                           "type": "text",
                           "index": "true",
                           "analyzer": "keyword"
+                      },
+                      "postcodeJoined": {
+                          "search_analyzer": "keyword_analyzer",
+                          "type": "text",
+                          "analyzer": "edge_ngram_analyzer"
                       }
                   }
               }
@@ -1465,6 +1470,11 @@ object Mappings {
                           "type": "text",
                           "index": "true",
                           "analyzer": "keyword"
+                      },
+                      "postcodeJoined": {
+                         "search_analyzer": "keyword_analyzer",
+                         "type": "text",
+                         "analyzer": "edge_ngram_analyzer"
                       }
                   }
               }
