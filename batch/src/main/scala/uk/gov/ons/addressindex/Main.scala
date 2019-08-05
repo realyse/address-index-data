@@ -110,10 +110,10 @@ For usage see below:
   }
 
   private def postLoad(indexName: String): Unit = {
-    val replicaResponse: HttpResponse[String] = Http(url + "/_settings")
-      .put("""{"index":{"number_of_replicas":1}}""")
-      .asString
-    if (replicaResponse.code != 200) throw new Exception(s"Could not set number of replicas using PUT: code ${replicaResponse.code} body ${replicaResponse.body}")
+//    val replicaResponse: HttpResponse[String] = Http(url + "/_settings")
+//      .put("""{"index":{"number_of_replicas":1}}""")
+//      .asString
+//    if (replicaResponse.code != 200) throw new Exception(s"Could not set number of replicas using PUT: code ${replicaResponse.code} body ${replicaResponse.body}")
     val refreshResponse: HttpResponse[String] = Http(url + "/_settings")
       .put("""{"index":{"refresh_interval":"1s"}}""")
       .asString
