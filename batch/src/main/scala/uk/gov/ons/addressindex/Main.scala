@@ -119,7 +119,7 @@ For usage see below:
 
   private def postLoad(indexName: String): Unit = {
     val replicaResponse: HttpResponse[String] = Http(url + "/_settings")
-      .put("""{"index":{"number_of_replicas":3}}""")
+      .put("""{"index":{"number_of_replicas":1}}""")
       .header("Content-type", "application/json")
       .header("Authorization", authHeader)
       .asString
