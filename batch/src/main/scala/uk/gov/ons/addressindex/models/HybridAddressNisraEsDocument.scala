@@ -1,8 +1,7 @@
 package uk.gov.ons.addressindex.models
 
 import org.apache.spark.sql.Row
-
-import scala.util.Try
+import uk.gov.ons.addressindex.utils.StringUtil.strToOpt
 
 case class HybridAddressNisraEsDocument(uprn: Long,
                                         postcodeIn: String,
@@ -83,7 +82,8 @@ object HybridAddressNisraEsDocument extends EsDocument {
       normalize(row.getString(32)),
       normalizeTowns(row.getString(31)),
       row.getString(1)
-    )
+    ),
+    "secondarySort" -> addLeadingZeros(row.getString(15) + " " + (if (row.isNullAt(21)) "" else row.getShort(21).toString) + row.getString(22) + " " + row.getString(11) + " " + row.getString(20)).replaceAll(" +", " ")
   )
 
   def rowToPaf(row: Row): Map[String, Any] = Map(
@@ -174,13 +174,6 @@ object HybridAddressNisraEsDocument extends EsDocument {
     "source" -> row.getAs[String]("source")
   )
 
-  def toShort(s: String): Option[Short] = {
-    Try(s.toShort).toOption
-  }
-
-  def toInt(s: String): Option[Int] = {
-    Try(s.toInt).toOption
-  }
 
   def buildingNameExtra(s: String): String = {
     try {
@@ -242,7 +235,8 @@ object HybridAddressNisraEsDocument extends EsDocument {
       "saoStartNumber" -> toShort(row.getString(9)).orNull,
       "saoStartSuffix" -> row.getString(11),
       "saoEndNumber" -> toShort(row.getString(10)).orNull,
-      "saoEndSuffix" -> row.getString(12)
+      "saoEndSuffix" -> row.getString(12),
+      "secondarySort" -> addLeadingZeros(Option(row.getString(8)).getOrElse("") + " " + Option(row.getString(9)).getOrElse("") + Option(row.getString(11)).getOrElse("") + " " + Option(row.getString(13)).getOrElse("") + " " + Option(row.getString(15)).getOrElse("")).replaceAll(" +", " ")
     )
   }
 
@@ -256,18 +250,42 @@ object HybridAddressNisraEsDocument extends EsDocument {
     val trimmedAltThoroughfare = normalize(altThoroughfare)
     val trimmedDependentThoroughfare = normalize(dependentThoroughfare)
 
-    val buildingNumberWithStreetDescription = s"${buildingNumber.toUpperCase} $trimmedDependentThoroughfare"
+    val buildingNumberWithStreetDescription = s"${buildingNumber.toUpperCase} $trimmedThoroughfare"
+    val buildingNameWithStreetDescription = s"${trimmedBuildingName.toUpperCase} $trimmedThoroughfare"
+    val commalessNumberAndStreetPart = if (startsWithNumber.findFirstIn(trimmedBuildingName).isDefined) buildingNameWithStreetDescription else buildingNumberWithStreetDescription
 
     Array(
-      Seq(normalize(organisationName), trimmedSubBuildingName, trimmedBuildingName, buildingNumberWithStreetDescription,
-        trimmedThoroughfare, normalizeTowns(locality), normalizeTowns(townland), normalizeTowns(townName),
+      Seq(normalize(organisationName),
+        trimmedSubBuildingName,
+        if (startsWithNumber.findFirstIn(trimmedBuildingName).isDefined) "" else trimmedBuildingName,
+        commalessNumberAndStreetPart,
+        trimmedDependentThoroughfare,
+        normalizeTowns(locality),
+        normalizeTowns(townland),
+        normalizeTowns(townName),
         postcode.toUpperCase).map(_.trim).filter(_.nonEmpty).mkString(", "),
       if (!altThoroughfare.isEmpty)
-        Seq(normalize(organisationName), trimmedSubBuildingName, trimmedBuildingName, buildingNumberWithStreetDescription,
-          trimmedAltThoroughfare, normalizeTowns(locality), normalizeTowns(townland), normalizeTowns(townName),
+        Seq(normalize(organisationName),
+          trimmedSubBuildingName,
+          trimmedBuildingName,
+          buildingNumber,
+          trimmedAltThoroughfare,
+          trimmedDependentThoroughfare,
+          normalizeTowns(locality),
+          normalizeTowns(townland),
+          normalizeTowns(townName),
           postcode.toUpperCase).map(_.trim).filter(_.nonEmpty).mkString(", ") else "",
-      Seq(organisationName, subBuildingName, buildingName, buildingNumber, dependentThoroughfare, thoroughfare,
-        altThoroughfare, locality, townland, townName, postcode).map(_.trim).filter(_.nonEmpty).mkString(" ")
+      Seq(organisationName,
+        subBuildingName,
+        buildingName,
+        buildingNumber,
+        thoroughfare,
+        dependentThoroughfare,
+        altThoroughfare,
+        locality,
+        townland,
+        townName,
+        postcode).map(_.trim).filter(_.nonEmpty).mkString(" ")
     )
   }
 }

@@ -5,7 +5,7 @@ import org.apache.spark.sql.DataFrame
 import org.rogach.scallop.{ScallopConf, ScallopOption}
 import scalaj.http.{Http, HttpResponse}
 import uk.gov.ons.addressindex.readers.AddressIndexFileReader
-import uk.gov.ons.addressindex.utils.{Mappings, SqlHelper}
+import uk.gov.ons.addressindex.utils.{Mappings, SqlHelper, AuthUtil}
 import uk.gov.ons.addressindex.writers.ElasticSearchWriter
 
 /**
@@ -37,24 +37,28 @@ For usage see below:
   val nodes = config.getString("addressindex.elasticsearch.nodes")
   val port = config.getString("addressindex.elasticsearch.port")
 
- //  each run of this application has a unique index name
-  val indexName = generateIndexName(historical = !opts.hybridNoHist(), skinny = opts.skinny(), nisra = opts.nisra())
+ // username and password should be set in the local application.conf
+ // this file is not checked into Git (application_full.conf on Spark server)
+  val username = config.getString("addressindex.elasticsearch.user")
+  val password = config.getString("addressindex.elasticsearch.pass")
+  val authHeader = s"Basic ${AuthUtil.encodeCredentials(username, password)}"
 
-  val url = s"http://$nodes:$port/$indexName"
+//    each run of this application has a unique index name
+    val indexName = generateIndexName(historical = !opts.hybridNoHist(), skinny = opts.skinny(), nisra = opts.nisra())
+    val url = s"http://$nodes:$port/$indexName"
 
   if (!opts.help()) {
     AddressIndexFileReader.validateFileNames()
-
     postMapping(indexName, skinny = opts.skinny())
     preLoad(indexName)
     saveHybridAddresses(historical = !opts.hybridNoHist(), skinny = opts.skinny(), nisra = opts.nisra())
     postLoad(indexName)
   } else opts.printHelp()
 
-//  val indexName = generateIndexName(historical = true, skinny = true, nisra = true)
-//  val url = s"http://$nodes:$port/$indexName"
-//  postMapping(indexName, skinny = true)
-//  saveHybridAddresses(historical = false, skinny = true, nisra = true)
+  //    val indexName = generateIndexName(historical = false, skinny = false, nisra = false)
+  //    val url = s"http://$nodes:$port/$indexName"
+  //    postMapping(indexName, skinny = false)
+  //    saveHybridAddresses(historical = false, skinny = false, nisra = false)
 
   private def generateIndexName(historical: Boolean = true, skinny: Boolean = false, nisra: Boolean = false): String =
     AddressIndexFileReader.generateIndexNameFromFileName(historical, skinny, nisra)
@@ -76,15 +80,15 @@ For usage see below:
 
     if (nisra) {
       if (skinny) {
-        ElasticSearchWriter.saveSkinnyHybridNisraAddresses(s"$indexName/address", SqlHelper.aggregateHybridSkinnyNisraIndex(paf, nag, nisratxt, historical))
+        ElasticSearchWriter.saveSkinnyHybridNisraAddresses(s"$indexName", SqlHelper.aggregateHybridSkinnyNisraIndex(paf, nag, nisratxt, historical))
       } else {
-        ElasticSearchWriter.saveHybridNisraAddresses(s"$indexName/address", SqlHelper.aggregateHybridNisraIndex(paf, nag, nisratxt, historical))
+        ElasticSearchWriter.saveHybridNisraAddresses(s"$indexName", SqlHelper.aggregateHybridNisraIndex(paf, nag, nisratxt, historical))
       }
     } else {
       if (skinny) {
-        ElasticSearchWriter.saveSkinnyHybridAddresses(s"$indexName/address", SqlHelper.aggregateHybridSkinnyIndex(paf, nag, historical))
+        ElasticSearchWriter.saveSkinnyHybridAddresses(s"$indexName", SqlHelper.aggregateHybridSkinnyIndex(paf, nag, historical))
       } else {
-        ElasticSearchWriter.saveHybridAddresses(s"$indexName/address", SqlHelper.aggregateHybridIndex(paf, nag, historical))
+        ElasticSearchWriter.saveHybridAddresses(s"$indexName", SqlHelper.aggregateHybridIndex(paf, nag, historical))
       }
     }
   }
@@ -98,6 +102,7 @@ For usage see below:
           Mappings.hybrid
         })
       .header("Content-type", "application/json")
+      .header("Authorization", authHeader)
       .asString
     if (response.code != 200) throw new Exception(s"Could not create mapping using PUT: code ${response.code} body ${response.body}")
   }
@@ -105,17 +110,24 @@ For usage see below:
   private def preLoad(indexName: String): Unit = {
     val refreshResponse: HttpResponse[String] = Http(url + "/_settings")
       .put("""{"index":{"refresh_interval":"-1"}}""")
+      .header("Content-type", "application/json")
+      // .header("WWW-Authenticate","Basic xxcxc")
+      .header("Authorization", authHeader)
       .asString
     if (refreshResponse.code != 200) throw new Exception(s"Could not set refresh interval using PUT: code ${refreshResponse.code} body ${refreshResponse.body}")
   }
 
   private def postLoad(indexName: String): Unit = {
-//    val replicaResponse: HttpResponse[String] = Http(url + "/_settings")
-//      .put("""{"index":{"number_of_replicas":1}}""")
-//      .asString
-//    if (replicaResponse.code != 200) throw new Exception(s"Could not set number of replicas using PUT: code ${replicaResponse.code} body ${replicaResponse.body}")
+    val replicaResponse: HttpResponse[String] = Http(url + "/_settings")
+      .put("""{"index":{"number_of_replicas":1}}""")
+      .header("Content-type", "application/json")
+      .header("Authorization", authHeader)
+      .asString
+    if (replicaResponse.code != 200) throw new Exception(s"Could not set number of replicas using PUT: code ${replicaResponse.code} body ${replicaResponse.body}")
     val refreshResponse: HttpResponse[String] = Http(url + "/_settings")
       .put("""{"index":{"refresh_interval":"1s"}}""")
+      .header("Content-type", "application/json")
+      .header("Authorization", authHeader)
       .asString
     if (refreshResponse.code != 200) throw new Exception(s"Could not set refresh interval using PUT: code ${refreshResponse.code} body ${refreshResponse.body}")
   }
