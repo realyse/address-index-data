@@ -52,7 +52,7 @@ For usage see below:
     postMapping(indexName, skinny = opts.skinny())
     preLoad(indexName)
     saveHybridAddresses(historical = !opts.hybridNoHist(), skinny = opts.skinny(), nisra = opts.nisra())
-    postLoad(indexName)
+ //   postLoad(indexName)
   } else opts.printHelp()
 
 //      val indexName = generateIndexName(historical = false, skinny = false, nisra = false)
