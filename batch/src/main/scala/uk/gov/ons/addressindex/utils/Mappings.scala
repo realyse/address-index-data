@@ -6,7 +6,7 @@ object Mappings {
     """
       {
           "settings": {
-              "number_of_shards": 4,
+              "number_of_shards": 1,
               "number_of_replicas": 0,
               "index.queries.cache.enabled": false,
               "index": {
@@ -971,7 +971,7 @@ object Mappings {
     """
       {
           "settings": {
-              "number_of_shards": 4,
+              "number_of_shards": 1,
               "number_of_replicas": 0,
               "index.queries.cache.enabled": false,
               "index": {
